@@ -79,6 +79,7 @@ Create a free verse poem that:
 - Has exactly {line_count} lines
 - Uses vivid imagery and metaphors
 
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
@@ -106,6 +107,8 @@ Create a sonnet that:
 - Has a clear volta (turn) around line 9
 - Ends with a strong couplet
 
+
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
@@ -133,6 +136,7 @@ Create a haiku that:
 - Has a seasonal reference or natural imagery
 - Creates a moment of insight or beauty
 
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
@@ -160,6 +164,7 @@ Create a limerick that:
 - Reflects the {emotion} emotion
 - Has a punchy, memorable ending
 
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
@@ -188,6 +193,7 @@ Create a ballad that:
 - Uses simple, clear language
 - Has a memorable refrain or chorus
 
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
@@ -215,6 +221,7 @@ Create an acrostic poem that:
 - Has exactly {line_count} lines
 - Maintains poetic flow and meaning
 
+generate only {line_count} only ,do not exceed the {line_count} count as the required poem should be this much big only .
 Poem:
 """
         )
