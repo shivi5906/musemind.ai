@@ -3,6 +3,15 @@ import requests
 import json
 import time
 from typing import Dict, Any
+from app.versecraftAgent import VerseCraftAgent
+
+
+from app.sqllite_utils import init_db, save_poem, get_poems
+
+
+#database intialistaion
+init_db()
+
 
 # Page configuration
 st.set_page_config(
@@ -309,6 +318,7 @@ def get_theme_css():
                 color: var(--text-muted);
                 font-family: 'Inter', sans-serif;
             }
+            
         </style>
         """
     else:
@@ -601,6 +611,45 @@ def get_theme_css():
             }
         </style>
         """
+
+st.markdown("""
+<style>
+    .poem-container {
+        background: #2b2b2b;
+        border-radius: 10px;
+        padding: 2rem;
+        margin: 1rem 0;
+        border-left: 4px solid #667eea;
+        min-height: 200px;
+    }
+    
+    .poem-text {
+        font-family: 'Georgia', serif;
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: #ffffff;
+        white-space: pre-line;  /* This preserves line breaks */
+    }
+    
+    /* Better column spacing */
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+    /* Input styling */
+    .stTextInput > div > div > input {
+        background-color: #2b2b2b;
+        color: white;
+        border-radius: 10px;
+    }
+    
+    .stSelectbox > div > div {
+        background-color: #2b2b2b;
+        color: white;
+        border-radius: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # API Base URL (you can make this configurable)
 API_BASE_URL = "http://localhost:8000"  # Change this to your backend URL
@@ -1038,7 +1087,10 @@ def poetry_generation_tool():
             "Enter keywords (comma-separated):",
             placeholder="love, ocean, mystery, moonlight..."
         )
-        
+        author = st.selectbox(
+            "Enter author name :",
+            ["kafka" , "dostovesky" , "rumi "]
+        )
         emotion = st.selectbox(
             "Primary emotion:",
             ["Love", "Sadness", "Joy", "Anger", "Peace", "Longing", "Wonder", "Fear"]
@@ -1058,20 +1110,44 @@ def poetry_generation_tool():
                 "keywords": keywords.split(",") if keywords else [],
                 "emotion": emotion,
                 "style": style,
-                "length": length
+                "length": length,
+                "author": author
             }
+            agent1 = VerseCraftAgent()
+            if keywords.strip():
+             with st.spinner("Crafting your poem..."):
+              result = agent1.generate_poem(keywords, emotion, style, length, author)
+
             
-            result = make_api_call("/api/generate", data)
-            
-            if "error" not in result:
-                st.session_state.poetry_result = result
+              if result['status'] == 'success':
+               # Format the poem with proper line breaks
+                    
+                    st.session_state.poem_result = result["poem"]
+                    st.session_state.show_poem = True
+              else:
+                    st.error(result['error'])     
     
     with col2:
-        if 'poetry_result' in st.session_state:
-            st.markdown("### Your Generated Poetry")
-            result = st.session_state.poetry_result
-
-            st.markdown(f'<div class="poetry-output">{result.get("poem", "Your generated poem will appear here...")}</div>', unsafe_allow_html=True)
+         st.markdown("### Your Generated Poetry")
+    
+    # Check if poem exists in session state
+         if hasattr(st.session_state, 'show_poem') and st.session_state.show_poem:
+        # Format poem with proper line breaks
+          formatted_poem = st.session_state.poem_result.replace('\n', '<br>')
+          st.markdown(f'''
+           <div class="poem-container">
+            <div class="poem-text">{formatted_poem}</div>
+           </div>
+           ''', unsafe_allow_html=True)
+         else:
+        # Placeholder when no poem is generated
+           st.markdown('''
+            <div class="poem-container">
+            <div class="poem-text" style="color: #888; font-style: italic;">
+                Your generated poem will appear here...
+            </div>
+           </div>
+          ''', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
