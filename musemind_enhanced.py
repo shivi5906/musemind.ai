@@ -3,14 +3,12 @@ import requests
 import json
 import time
 from typing import Dict, Any
+
 from app.versecraftAgent import VerseCraftAgent
+from app.plotweaaver import PlotWeaver
 
 
-from app.sqllite_utils import init_db, save_poem, get_poems
 
-
-#database intialistaion
-init_db()
 
 
 # Page configuration
@@ -25,13 +23,341 @@ st.set_page_config(
 if 'theme' not in st.session_state:
     st.session_state.theme = 'dark'
 
-# Dynamic CSS based on theme
+#base class css theme not dynamic 
 def get_theme_css():
-    if st.session_state.theme == 'dark':
-        return """
+    base_css = """
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
             
+            /* Common styles that work for both themes */
+            .main-title {
+                font-family: 'Playfair Display', serif !important;
+                font-size: 4rem !important;
+                font-weight: 700 !important;
+                text-align: center !important;
+                margin-bottom: 0.5rem !important;
+                background: var(--gradient-primary) !important;
+                -webkit-background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                background-clip: text !important;
+                text-shadow: 0 0 30px rgba(139, 92, 246, 0.3) !important;
+                animation: glow 2s ease-in-out infinite alternate !important;
+            }
+            
+            @keyframes glow {
+                from { filter: brightness(1); }
+                to { filter: brightness(1.2); }
+            }
+            
+            .subtitle {
+                font-family: 'Inter', sans-serif !important;
+                font-size: 1.3rem !important;
+                font-weight: 300 !important;
+                text-align: center !important;
+                margin-bottom: 2rem !important;
+                color: var(--text-secondary) !important;
+            }
+            
+            .tool-title {
+                font-family: 'Playfair Display', serif !important;
+                font-size: 2.5rem !important;
+                font-weight: 600 !important;
+                margin-bottom: 1rem !important;
+                color: var(--text-primary) !important;
+                background: var(--gradient-primary) !important;
+                -webkit-background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                background-clip: text !important;
+            }
+            
+            .tool-description {
+                font-family: 'Inter', sans-serif !important;
+                font-size: 1.1rem !important;
+                color: var(--text-secondary) !important;
+                margin-bottom: 2rem !important;
+                line-height: 1.7 !important;
+                padding: 1rem !important;
+                background: var(--bg-secondary) !important;
+                border-radius: 12px !important;
+                border: 1px solid var(--border-color) !important;
+                box-shadow: var(--shadow-secondary) !important;
+            }
+            
+            .poetry-output {
+                font-family: 'Crimson Text', serif !important;
+                font-size: 1.2rem !important;
+                line-height: 1.9 !important;
+                padding: 2rem !important;
+                background: var(--bg-secondary) !important;
+                border-radius: 16px !important;
+                border: 1px solid var(--border-color) !important;
+                border-left: 4px solid var(--accent-primary) !important;
+                margin: 1rem 0 !important;
+                color: var(--text-primary) !important;
+                box-shadow: var(--shadow-primary) !important;
+                backdrop-filter: blur(10px) !important;
+                position: relative !important;
+                overflow: hidden !important;
+            }
+            
+            .poetry-output::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(45deg, transparent 30%, rgba(139, 92, 246, 0.03) 50%, transparent 70%);
+                pointer-events: none;
+            }
+            
+            .loading-spinner {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                padding: 2rem !important;
+                color: var(--text-primary) !important;
+            }
+            
+            /* Button styling */
+            .stButton > button {
+                font-family: 'Inter', sans-serif !important;
+                font-weight: 600 !important;
+                background: var(--gradient-primary) !important;
+                color: white !important;
+                border: none !important;
+                padding: 0.75rem 2rem !important;
+                border-radius: 30px !important;
+                transition: all 0.3s ease !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.5px !important;
+                font-size: 0.9rem !important;
+                box-shadow: var(--shadow-primary) !important;
+            }
+            
+            .stButton > button:hover {
+                transform: translateY(-3px) !important;
+                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4) !important;
+                filter: brightness(1.1) !important;
+            }
+            
+            .stButton > button:active {
+                transform: translateY(-1px) !important;
+            }
+            
+            /* Universal label styling - targets all possible label selectors */
+            .stSelectbox label,
+            .stTextInput label,
+            .stTextArea label,
+            .stMultiSelect label,
+            .stRadio label,
+            .stSlider label,
+            .stCheckbox label,
+            .stNumberInput label,
+            .stFileUploader label,
+            .stDateInput label,
+            .stTimeInput label,
+            .stColorPicker label,
+            div[data-testid="stWidgetLabel"],
+            div[data-testid="stWidgetLabel"] > div,
+            div[data-testid="stWidgetLabel"] > div > div,
+            div[data-testid="stWidgetLabel"] p,
+            label,
+            .stSidebar label,
+            .stSidebar .stSelectbox label,
+            .stSidebar .stTextInput label,
+            .stSidebar .stTextArea label,
+            .stSidebar .stMultiSelect label,
+            .stSidebar .stRadio label,
+            .stSidebar .stSlider label,
+            .stSidebar .stCheckbox label,
+            .stSidebar .stNumberInput label {
+                color: var(--text-primary) !important;
+                font-weight: 500 !important;
+                font-family: 'Inter', sans-serif !important;
+            }
+            
+            /* Input field styling */
+            .stTextInput input,
+            .stTextArea textarea,
+            .stSelectbox select,
+            .stNumberInput input,
+            .stDateInput input,
+            .stTimeInput input,
+            .stSidebar .stTextInput input,
+            .stSidebar .stTextArea textarea,
+            .stSidebar .stSelectbox select,
+            .stSidebar .stNumberInput input {
+                background: var(--bg-tertiary) !important;
+                border: 1px solid var(--border-color) !important;
+                color: var(--text-primary) !important;
+                border-radius: 8px !important;
+            }
+            
+            /* Radio button styling */
+            .stRadio > div,
+            .stSidebar .stRadio > div {
+                background: var(--bg-secondary) !important;
+                border-radius: 8px !important;
+                padding: 0.5rem !important;
+            }
+            
+            .stRadio > div > label,
+            .stSidebar .stRadio > div > label {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Checkbox styling */
+            .stCheckbox > label,
+            .stSidebar .stCheckbox > label {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Multiselect styling */
+            .stMultiSelect > label,
+            .stSidebar .stMultiSelect > label {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Sidebar styling - using more generic selectors */
+            .stSidebar {
+                background: var(--bg-secondary) !important;
+                border-right: 1px solid var(--border-color) !important;
+            }
+            
+            .stSidebar > div {
+                background: var(--bg-secondary) !important;
+            }
+            
+            /* General text elements */
+            .stMarkdown,
+            .stMarkdown p,
+            .stMarkdown div,
+            .stText,
+            .stText p,
+            .stText div,
+            div[data-testid="stMarkdownContainer"],
+            div[data-testid="stMarkdownContainer"] p,
+            div[data-testid="stMarkdownContainer"] div {
+                color: var(--text-primary) !important;
+            }
+            
+            .stMarkdown h1,
+            .stMarkdown h2,
+            .stMarkdown h3,
+            .stMarkdown h4,
+            .stMarkdown h5,
+            .stMarkdown h6 {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Metric styling */
+            .stMetric label,
+            .stMetric > div,
+            .stMetric > div > div {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Expander styling */
+            .stExpander > div > div > div > div,
+            .stExpander label {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Tab styling */
+            .stTabs > div > div > div > div {
+                color: var(--text-primary) !important;
+            }
+            
+            /* Theme toggle button */
+            .theme-toggle {
+                position: fixed !important;
+                top: 20px !important;
+                right: 20px !important;
+                z-index: 1000 !important;
+                background: var(--gradient-primary) !important;
+                border: none !important;
+                border-radius: 50% !important;
+                width: 60px !important;
+                height: 60px !important;
+                cursor: pointer !important;
+                transition: all 0.3s ease !important;
+                box-shadow: var(--shadow-primary) !important;
+                font-size: 1.5rem !important;
+            }
+            
+            .theme-toggle:hover {
+                transform: scale(1.1) !important;
+                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4) !important;
+            }
+            
+            /* Floating elements */
+            .floating-decoration {
+                position: fixed !important;
+                width: 100px !important;
+                height: 100px !important;
+                border-radius: 50% !important;
+                background: var(--gradient-primary) !important;
+                opacity: 0.05 !important;
+                animation: float 6s ease-in-out infinite !important;
+                z-index: -1 !important;
+            }
+            
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-20px); }
+            }
+            
+            .floating-decoration:nth-child(1) {
+                top: 10% !important;
+                left: 10% !important;
+                animation-delay: 0s !important;
+            }
+            
+            .floating-decoration:nth-child(2) {
+                top: 20% !important;
+                right: 10% !important;
+                animation-delay: 2s !important;
+            }
+            
+            .floating-decoration:nth-child(3) {
+                bottom: 10% !important;
+                left: 20% !important;
+                animation-delay: 4s !important;
+            }
+            
+            /* Scrollbar styling */
+            ::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            ::-webkit-scrollbar-track {
+                background: var(--bg-secondary);
+            }
+            
+            ::-webkit-scrollbar-thumb {
+                background: var(--accent-primary);
+                border-radius: 4px;
+            }
+            
+            ::-webkit-scrollbar-thumb:hover {
+                background: var(--accent-secondary);
+            }
+            
+            /* Footer styling */
+            .footer {
+                margin-top: 4rem !important;
+                padding: 2rem !important;
+                text-align: center !important;
+                border-top: 1px solid var(--border-color) !important;
+                color: var(--text-muted) !important;
+                font-family: 'Inter', sans-serif !important;
+            }
+        </style>
+        """
+    
+    if st.session_state.theme == 'dark':
+        theme_vars = """
             /* Dark theme variables */
             :root {
                 --bg-primary: #0a0a0a;
@@ -51,281 +377,28 @@ def get_theme_css():
             
             /* Override Streamlit's default dark theme */
             .stApp {
-                background: var(--bg-primary);
-                color: var(--text-primary);
-            }
-            
-            .main-title {
-                font-family: 'Playfair Display', serif;
-                font-size: 4rem;
-                font-weight: 700;
-                text-align: center;
-                margin-bottom: 0.5rem;
-                background: var(--gradient-primary);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                text-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
-                animation: glow 2s ease-in-out infinite alternate;
-            }
-            
-            @keyframes glow {
-                from { filter: brightness(1); }
-                to { filter: brightness(1.2); }
+                background: var(--bg-primary) !important;
+                color: var(--text-primary) !important;
             }
             
             .subtitle {
-                font-family: 'Inter', sans-serif;
-                font-size: 1.3rem;
-                font-weight: 300;
-                text-align: center;
-                margin-bottom: 2rem;
-                color: var(--text-secondary);
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
             }
             
             .tool-title {
-                font-family: 'Playfair Display', serif;
-                font-size: 2.5rem;
-                font-weight: 600;
-                margin-bottom: 1rem;
-                color: var(--text-primary);
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-                background: var(--gradient-primary);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
             }
             
-            .tool-description {
-                font-family: 'Inter', sans-serif;
-                font-size: 1.1rem;
-                color: var(--text-secondary);
-                margin-bottom: 2rem;
-                line-height: 1.7;
-                padding: 1rem;
-                background: var(--bg-secondary);
-                border-radius: 12px;
-                border: 1px solid var(--border-color);
-                box-shadow: var(--shadow-secondary);
-            }
-            
-            .poetry-output {
-                font-family: 'Crimson Text', serif;
-                font-size: 1.2rem;
-                line-height: 1.9;
-                padding: 2rem;
-                background: var(--bg-secondary);
-                border-radius: 16px;
-                border: 1px solid var(--border-color);
-                border-left: 4px solid var(--accent-primary);
-                margin: 1rem 0;
-                color: var(--text-primary);
-                box-shadow: var(--shadow-primary);
-                backdrop-filter: blur(10px);
-                position: relative;
-                overflow: hidden;
+            .floating-decoration {
+                opacity: 0.1 !important;
             }
             
             .poetry-output::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(45deg, transparent 30%, rgba(139, 92, 246, 0.05) 50%, transparent 70%);
-                pointer-events: none;
+                background: linear-gradient(45deg, transparent 30%, rgba(139, 92, 246, 0.05) 50%, transparent 70%) !important;
             }
-            
-            .loading-spinner {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 2rem;
-                color: var(--text-primary);
-            }
-            
-            .stButton > button {
-                font-family: 'Inter', sans-serif;
-                font-weight: 600;
-                background: var(--gradient-primary);
-                color: white;
-                border: none;
-                padding: 0.75rem 2rem;
-                border-radius: 30px;
-                transition: all 0.3s ease;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                font-size: 0.9rem;
-                box-shadow: var(--shadow-primary);
-            }
-            
-            .stButton > button:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
-                filter: brightness(1.1);
-            }
-            
-            .stButton > button:active {
-                transform: translateY(-1px);
-            }
-            
-            /* Sidebar styling */
-            .css-1d391kg {
-                background: var(--bg-secondary);
-                border-right: 1px solid var(--border-color);
-            }
-            
-            .css-1d391kg .stSelectbox label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stTextInput label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stTextArea label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stMultiSelect label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stRadio label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stSlider label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stCheckbox label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            /* Input field styling */
-            .stTextInput input {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            .stTextArea textarea {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            .stSelectbox select {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            /* Theme toggle button */
-            .theme-toggle {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 1000;
-                background: var(--gradient-primary);
-                border: none;
-                border-radius: 50%;
-                width: 60px;
-                height: 60px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: var(--shadow-primary);
-                font-size: 1.5rem;
-            }
-            
-            .theme-toggle:hover {
-                transform: scale(1.1);
-                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
-            }
-            
-            /* Floating elements */
-            .floating-decoration {
-                position: fixed;
-                width: 100px;
-                height: 100px;
-                border-radius: 50%;
-                background: var(--gradient-primary);
-                opacity: 0.1;
-                animation: float 6s ease-in-out infinite;
-                z-index: -1;
-            }
-            
-            @keyframes float {
-                0%, 100% { transform: translateY(0px); }
-                50% { transform: translateY(-20px); }
-            }
-            
-            .floating-decoration:nth-child(1) {
-                top: 10%;
-                left: 10%;
-                animation-delay: 0s;
-            }
-            
-            .floating-decoration:nth-child(2) {
-                top: 20%;
-                right: 10%;
-                animation-delay: 2s;
-            }
-            
-            .floating-decoration:nth-child(3) {
-                bottom: 10%;
-                left: 20%;
-                animation-delay: 4s;
-            }
-            
-            /* Scrollbar styling */
-            ::-webkit-scrollbar {
-                width: 8px;
-            }
-            
-            ::-webkit-scrollbar-track {
-                background: var(--bg-secondary);
-            }
-            
-            ::-webkit-scrollbar-thumb {
-                background: var(--accent-primary);
-                border-radius: 4px;
-            }
-            
-            ::-webkit-scrollbar-thumb:hover {
-                background: var(--accent-secondary);
-            }
-            
-            /* Footer styling */
-            .footer {
-                margin-top: 4rem;
-                padding: 2rem;
-                text-align: center;
-                border-top: 1px solid var(--border-color);
-                color: var(--text-muted);
-                font-family: 'Inter', sans-serif;
-            }
-            
-        </style>
         """
     else:
-        return """
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
-            
+        theme_vars = """
             /* Light theme variables */
             :root {
                 --bg-primary: #ffffff;
@@ -344,272 +417,24 @@ def get_theme_css():
             }
             
             .stApp {
-                background: var(--bg-primary);
-                color: var(--text-primary);
+                background: var(--bg-primary) !important;
+                color: var(--text-primary) !important;
             }
             
-            .main-title {
-                font-family: 'Playfair Display', serif;
-                font-size: 4rem;
-                font-weight: 700;
-                text-align: center;
-                margin-bottom: 0.5rem;
-                background: var(--gradient-primary);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
-                animation: glow 2s ease-in-out infinite alternate;
-            }
-            
-            @keyframes glow {
-                from { filter: brightness(1); }
-                to { filter: brightness(1.2); }
-            }
-            
-            .subtitle {
-                font-family: 'Inter', sans-serif;
-                font-size: 1.3rem;
-                font-weight: 300;
-                text-align: center;
-                margin-bottom: 2rem;
-                color: var(--text-secondary);
-            }
-            
-            .tool-title {
-                font-family: 'Playfair Display', serif;
-                font-size: 2.5rem;
-                font-weight: 600;
-                margin-bottom: 1rem;
-                color: var(--text-primary);
-                background: var(--gradient-primary);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-            
-            .tool-description {
-                font-family: 'Inter', sans-serif;
-                font-size: 1.1rem;
-                color: var(--text-secondary);
-                margin-bottom: 2rem;
-                line-height: 1.7;
-                padding: 1rem;
-                background: var(--bg-secondary);
-                border-radius: 12px;
-                border: 1px solid var(--border-color);
-                box-shadow: var(--shadow-secondary);
-            }
-            
-            .poetry-output {
-                font-family: 'Crimson Text', serif;
-                font-size: 1.2rem;
-                line-height: 1.9;
-                padding: 2rem;
-                background: var(--bg-secondary);
-                border-radius: 16px;
-                border: 1px solid var(--border-color);
-                border-left: 4px solid var(--accent-primary);
-                margin: 1rem 0;
-                color: var(--text-primary);
-                box-shadow: var(--shadow-primary);
-                backdrop-filter: blur(10px);
-                position: relative;
-                overflow: hidden;
+            .floating-decoration {
+                opacity: 0.05 !important;
             }
             
             .poetry-output::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(45deg, transparent 30%, rgba(139, 92, 246, 0.03) 50%, transparent 70%);
-                pointer-events: none;
+                background: linear-gradient(45deg, transparent 30%, rgba(139, 92, 246, 0.03) 50%, transparent 70%) !important;
             }
-            
-            .loading-spinner {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 2rem;
-                color: var(--text-primary);
-            }
-            
-            .stButton > button {
-                font-family: 'Inter', sans-serif;
-                font-weight: 600;
-                background: var(--gradient-primary);
-                color: white;
-                border: none;
-                padding: 0.75rem 2rem;
-                border-radius: 30px;
-                transition: all 0.3s ease;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                font-size: 0.9rem;
-                box-shadow: var(--shadow-primary);
-            }
-            
-            .stButton > button:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
-                filter: brightness(1.1);
-            }
-            
-            .stButton > button:active {
-                transform: translateY(-1px);
-            }
-            
-            /* Sidebar styling */
-            .css-1d391kg {
-                background: var(--bg-secondary);
-                border-right: 1px solid var(--border-color);
-            }
-            
-            .css-1d391kg .stSelectbox label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stTextInput label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stTextArea label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stMultiSelect label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stRadio label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stSlider label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            .css-1d391kg .stCheckbox label {
-                color: var(--text-primary);
-                font-weight: 500;
-            }
-            
-            /* Input field styling */
-            .stTextInput input {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            .stTextArea textarea {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            .stSelectbox select {
-                background: var(--bg-tertiary);
-                border: 1px solid var(--border-color);
-                color: var(--text-primary);
-                border-radius: 8px;
-            }
-            
-            /* Theme toggle button */
-            .theme-toggle {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 1000;
-                background: var(--gradient-primary);
-                border: none;
-                border-radius: 50%;
-                width: 60px;
-                height: 60px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: var(--shadow-primary);
-                font-size: 1.5rem;
-            }
-            
-            .theme-toggle:hover {
-                transform: scale(1.1);
-                box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
-            }
-            
-            /* Floating elements */
-            .floating-decoration {
-                position: fixed;
-                width: 100px;
-                height: 100px;
-                border-radius: 50%;
-                background: var(--gradient-primary);
-                opacity: 0.05;
-                animation: float 6s ease-in-out infinite;
-                z-index: -1;
-            }
-            
-            @keyframes float {
-                0%, 100% { transform: translateY(0px); }
-                50% { transform: translateY(-20px); }
-            }
-            
-            .floating-decoration:nth-child(1) {
-                top: 10%;
-                left: 10%;
-                animation-delay: 0s;
-            }
-            
-            .floating-decoration:nth-child(2) {
-                top: 20%;
-                right: 10%;
-                animation-delay: 2s;
-            }
-            
-            .floating-decoration:nth-child(3) {
-                bottom: 10%;
-                left: 20%;
-                animation-delay: 4s;
-            }
-            
-            /* Scrollbar styling */
-            ::-webkit-scrollbar {
-                width: 8px;
-            }
-            
-            ::-webkit-scrollbar-track {
-                background: var(--bg-secondary);
-            }
-            
-            ::-webkit-scrollbar-thumb {
-                background: var(--accent-primary);
-                border-radius: 4px;
-            }
-            
-            ::-webkit-scrollbar-thumb:hover {
-                background: var(--accent-secondary);
-            }
-            
-            /* Footer styling */
-            .footer {
-                margin-top: 4rem;
-                padding: 2rem;
-                text-align: center;
-                border-top: 1px solid var(--border-color);
-                color: var(--text-muted);
-                font-family: 'Inter', sans-serif;
-            }
+        """
+    
+    return f"""
+        <style>
+            {theme_vars}
         </style>
+        {base_css}
         """
 
 st.markdown("""
@@ -680,16 +505,15 @@ def show_loading():
 def theme_toggle():
     """Add floating theme toggle button"""
     theme_icon = "🌙" if st.session_state.theme == 'light' else "☀️"
-    st.markdown(f"""
-    <div class="theme-toggle" onclick="toggleTheme()">
-        {theme_icon}
-    </div>
-    <script>
-        function toggleTheme() {{
-            // This will be handled by the Streamlit button
-        }}
-    </script>
-    """, unsafe_allow_html=True)
+    st.markdown("""
+<script>
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+}
+</script>
+""", unsafe_allow_html=True)
 
 # Floating decorations
 def add_floating_decorations():
@@ -1035,51 +859,155 @@ def plot_based_writing_tool():
     """Plot-Based Writing Tool"""
     st.markdown('<h2 class="tool-title">📚 Plot-Based Writing</h2>', unsafe_allow_html=True)
     st.markdown('<p class="tool-description">Get inspiring plots and themes to kickstart your poetic writing journey.</p>', unsafe_allow_html=True)
-    
     col1, col2 = st.columns([1, 1])
-    
+
     with col1:
+        # Initialize PlotWeaver if not available
+        if 'plotweaver' not in st.session_state:
+            try:
+                with st.spinner("Initializing PlotWeaver..."):
+                    st.session_state.plotweaver = PlotWeaver()
+                    st.success("PlotWeaver initialized successfully!")
+            except Exception as e:
+                st.error(f"Failed to initialize PlotWeaver: {str(e)}")
+                st.info("Please check your environment setup and API keys.")
+                return
+
+        # Get available options from PlotWeaver
+        try:
+            available_genres = st.session_state.plotweaver.get_available_genres()
+            available_moods = st.session_state.plotweaver.get_available_moods()
+            complexity_info = st.session_state.plotweaver.get_complexity_info()
+        except Exception as e:
+            st.error(f"Error loading options: {str(e)}")
+            # Fallback to default options
+            available_genres = ["Romance", "Mystery", "Adventure", "Fantasy", "Drama", "Horror", "Slice of Life"]
+            available_moods = ["Melancholic", "Joyful", "Mysterious", "Passionate", "Serene", "Intense", "Whimsical"]
+            complexity_info = {"simple": "Basic plot", "moderate": "Moderate complexity", "complex": "Complex plot"}
+        
+        # Genre selection with expanded options
         genre = st.selectbox(
             "Choose a genre:",
             ["Romance", "Mystery", "Adventure", "Fantasy", "Drama", "Horror", "Slice of Life"]
         )
         
+        # Mood selection with expanded options
         mood = st.selectbox(
             "Desired mood:",
             ["Melancholic", "Joyful", "Mysterious", "Passionate", "Serene", "Intense", "Whimsical"]
+           
         )
+        
+        # Plot complexity with descriptions
+        complexity_options = list(complexity_info.keys())
+        complexity_display = [f"{key.title()}" for key in complexity_options]
         
         length = st.radio(
             "Plot complexity:",
-            ["Simple", "Moderate", "Complex"]
+            complexity_display
         )
         
-        if st.button("📚 Generate Plot"):
+        # Convert display back to internal format
+        complexity_key = complexity_options[complexity_display.index(length)]
+        
+        # Show complexity description
+        if complexity_key in complexity_info:
+            st.info(f"**{complexity_key.title()}**: {complexity_info[complexity_key]}")
+        
+
+        data={
+            "genre" : genre,
+            "mood" : mood,
+            "complexity" : length 
+        }
+        # Generate button
+        if st.button("📚 Generate Plot", type="primary"):
             show_loading()
             
-            data = {
-                "genre": genre,
-                "mood": mood,
-                "length": length
-            }
-            
-            result = make_api_call("/api/plot", data)
-            
-            if "error" not in result:
-                st.session_state.plot_result = result
+          
+            agent2 = PlotWeaver()
+
+ 
+            try:
+                # Use PlotWeaver as an agent
+                with st.spinner("🧠 Agent analyzing themes... 📚 Retrieving context... 🧩 Composing plot..."):
+                    plot_result = agent2.generate_plot(genre,mood,length)
+                
+                if plot_result:
+                    # Store result in session state
+                    st.session_state.plot_result = {
+                        'plot': plot_result,
+                        'genre': genre,
+                        'mood': mood,
+                        'complexity': complexity_key,
+                        
+                    }
+                    
+                    st.success("Plot generated successfully by PlotWeaver Agent!")
+                else:
+                    st.error("Agent failed to generate plot. Please try again.")
+                    
+            except Exception as e:
+                st.error(f"Agent execution failed: {str(e)}")
+                st.info("Please check your setup and try again.")
     
     with col2:
         if 'plot_result' in st.session_state:
             st.markdown("### Your Plot Foundation")
             result = st.session_state.plot_result
             
-            st.markdown(f'<div class="poetry-output">{result.get("plot", "Your plot will appear here...")}</div>', unsafe_allow_html=True)
+            # Display plot with better formatting
+            plot_content = result.get("plot", "Your plot will appear here...")
+            
+            # Style the output
+            st.markdown(f'<div class="poetry-output">{plot_content}</div>', unsafe_allow_html=True)
+            
+            # Plot tools
+            with st.expander("🔧 Plot Tools"):
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    # Download button
+                    st.download_button(
+                        label="📥 Download Plot",
+                        data=plot_content,
+                        file_name=f"plot_{result.get('timestamp', 'generated').replace(':', '-').replace(' ', '_')}.txt",
+                        mime="text/plain"
+                    )
+                
+                with col_b:
+                    # Regenerate with same parameters using agent
+                    if st.button("🔄 Regenerate", help="Generate a new plot with the same parameters"):
+                        try:
+                            with st.spinner("Agent regenerating plot..."):
+                                new_plot = st.session_state.plotweaver.generate_plot(genre,mood,length)
+                            
+                            if new_plot:
+                                st.session_state.plot_result['plot'] = new_plot
+                                st.rerun()
+                            else:
+                                st.error("Agent regeneration failed. Please try again.")
+                        except Exception as e:
+                            st.error(f"Agent regeneration failed: {str(e)}")
+            
+            # Show generation parameters
+            with st.expander("📊 Generation Details"):
+                st.write(f"**Genre:** {result.get('genre', 'N/A')}")
+                st.write(f"**Mood:** {result.get('mood', 'N/A')}")
+                st.write(f"**Complexity:** {result.get('complexity', 'N/A').title()}")
+                st.write(f"**Agent:** PlotWeaver")
+        else:
+            st.markdown("### Your Plot Foundation")
+            st.info("👆 Configure your preferences and click 'Generate Plot' to get started!")
+
+
 
 def poetry_generation_tool():
     """Poetry Generation Tool"""
     st.markdown('<h2 class="tool-title">✍️ Poetry Generation</h2>', unsafe_allow_html=True)
-    st.markdown('<p class="tool-description">Generate beautiful poems and quotes from your keywords and emotions.</p>', unsafe_allow_html=True)
-    
+    st.markdown('<p class="tool-description"><b>Generate beautiful poems and quotes from your KEYWORDS and EMOTIONS.</b></p>', unsafe_allow_html=True)
+    st.markdown('<p class="tool-description"><i>NOTE:</i> Please remember the linecount does not work on haiku (traditionalscheme)  .</p>', unsafe_allow_html=True)
+
     col1, col2 = st.columns([1, 1])
     
     with col1:
@@ -1089,7 +1017,7 @@ def poetry_generation_tool():
         )
         author = st.selectbox(
             "Enter author name :",
-            ["kafka" , "dostovesky" , "rumi "]
+            ["kafka" , "dostovesky" , "rumi"]
         )
         emotion = st.selectbox(
             "Primary emotion:",
