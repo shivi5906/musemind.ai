@@ -7,6 +7,7 @@ from typing import Dict, Any
 from app.versecraftAgent import VerseCraftAgent
 from app.plotweaaver import PlotWeaver
 from app.lexifix import LexiFix
+from app.poetanalysis import PoetAnalysisAgent
 
 
 
@@ -590,44 +591,54 @@ def poet_analysis_tool():
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        poet_name = st.selectbox(
-            "Choose a poet to analyze:",
-            ["Franz Kafka", "Rumi", "Sylvia Plath", "Emily Dickinson", "Pablo Neruda", "Maya Angelou", "William Shakespeare"]
+        poetname = st.text_input(
+            "Enter Poet Name :",
+            placeholder="FRANZ KAFKA , FYODER DOSTOVESKY ...."
         )
         
-        analysis_type = st.multiselect(
-            "What aspects to analyze:",
-            ["Tone", "Grammar", "Style", "Themes", "Imagery", "Rhythm"],
-            default=["Tone", "Style"]
-        )
         
-        sample_text = st.text_area(
-            "Paste a sample poem (optional):",
-            placeholder="Enter a poem by the selected poet for detailed analysis...",
-            height=150
-        )
+        
+        
         
         if st.button("🔍 Analyze Poet"):
             show_loading()
+            agent4 = PoetAnalysisAgent()
             
-            data = {
-                "poet_name": poet_name,
-                "analysis_type": analysis_type,
-                "sample_text": sample_text
-            }
             
-            result = make_api_call("/api/analyze-poet", data)
+            if poetname:
+                context = agent4.search_poet_context(poetname)
+                summary = agent4.generate_summary(poetname, context)
+                final_summary = agent4.refine_summary(summary)
+                
+                result = final_summary.content
+                
             
             if "error" not in result:
                 st.session_state.poet_analysis_result = result
     
-    with col2:
+    
         if 'poet_analysis_result' in st.session_state:
             st.markdown("### Analysis Results")
             result = st.session_state.poet_analysis_result
             
             # Display results in elegant format
-            st.markdown(f'<div class="poetry-output">{result.get("poem", "Your poem will appear here...")}</div>', unsafe_allow_html=True)
+            with st.spinner("✨ Crafting your poetic analysis... Please wait."):
+                time.sleep(3)
+                st.markdown(f'<div class="poetry-output">{result}</div>', unsafe_allow_html=True)
+                
+          
+            with st.expander("📊 Generation Details"):
+                st.write(f"**Tools:** web search and refining facts")
+                st.download_button(
+                label="📥 Download analysis summary",
+                data=result.encode('utf-8'),
+                file_name="result.txt",
+                mime="text/plain"
+            )
+                st.write(f"**Agent:** PoetAnalysisAgent..")
+        
+        
+        
 
 def vocabulary_help_tool():
     """Vocabulary Help Tool"""
