@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 from app.versecraftAgent import VerseCraftAgent
 from app.plotweaaver import PlotWeaver
-
+from app.lexifix import LexiFix
 
 
 
@@ -692,10 +692,6 @@ def content_generation_tool():
             ["Poetic Prose", "Free Verse", "Structured Poem", "Philosophical Reflection"]
         )
         
-        tone = st.selectbox(
-            "Tone:",
-            ["Contemplative", "Passionate", "Gentle", "Bold", "Nostalgic", "Hopeful"]
-        )
         
         if st.button("💭 Transform Ideas"):
             show_loading()
@@ -717,6 +713,9 @@ def content_generation_tool():
             result = st.session_state.content_result
             
             st.markdown(f'<div class="poetry-output">{result.get("content", "Your transformed content will appear here...")}</div>', unsafe_allow_html=True)
+
+
+
 
 def beginner_guide_tool():
     """Beginner's Guide Tool"""
@@ -785,29 +784,129 @@ def poetry_correction_tool():
         preserve_style = st.checkbox("Preserve original style", value=True)
         
         if st.button("🔧 Correct Poem"):
-            show_loading()
+            if poem_text.strip():  # Check if poem text is not empty
+                show_loading()
+                
+                agent3 = LexiFix()
+                
+                data = {
+                    "text": poem_text,
+                    "correction_focus": ", ".join(correction_focus) if correction_focus else "General",
+                    "preserve_structure": preserve_style,
+                    "output_format": "text"
+                }
+                
+                with st.spinner("WORKING ON THE POEM...."):
+                    result = agent3.fix_text(data)
+                    
+                    # Store result in session state
+                    st.session_state.correction_result = result
+                    
+                    if result.get("success"):
+                        st.success("✅ Poem corrected successfully!")
+                    else:
+                        st.error("❌ Error occurred during correction")
+            else:
+                st.warning("⚠️ Please enter a poem before clicking correct!")
+    
+    # Define display_results function outside of columns
+    def display_results(result):
+        if result.get("success"):
+            # Success message
+            st.markdown('<div class="success-message">✅ Poem successfully corrected!</div>', unsafe_allow_html=True)
             
-            data = {
-                "poem": poem_text,
-                "correction_focus": correction_focus,
-                "preserve_style": preserve_style
-            }
+            # Display corrected poem
+            st.markdown("### 📝 Corrected Poem")
+            corrected_text = result.get("fixed_text", "")
+            st.markdown(f'<div class="poetry-output">{corrected_text}</div>', unsafe_allow_html=True)
             
-            result = make_api_call("/api/fix-poem", data)
+            # Display correction statistics
+            st.markdown("### 📊 Correction Details")
+            col1, col2, col3 = st.columns(3)
             
-            if "error" not in result:
-                st.session_state.correction_result = result
+            with col1:
+                st.metric("Word Count", result.get("word_count", 0))
+            
+            with col2:
+                st.metric("Focus Area", result.get("correction_focus", "N/A"))
+            
+            with col3:
+                structure_status = "✅ Preserved" if result.get("structure_preserved") else "🔄 Restructured"
+                st.markdown(f"**Structure:** {structure_status}")
+            
+            # Show original vs corrected comparison
+            with st.expander("🔍 View Original vs Corrected"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("**Original:**")
+                    st.markdown(f'<div class="poetry-output" style="background: #fff3cd;">{result.get("original_text", "")}</div>', unsafe_allow_html=True)
+                with col2:
+                    st.markdown("**Corrected:**")
+                    st.markdown(f'<div class="poetry-output" style="background: #d1ecf1;">{corrected_text}</div>', unsafe_allow_html=True)
+            
+            # Download button
+            st.download_button(
+                label="📥 Download Corrected Poem",
+                data=corrected_text,
+                file_name="corrected_poem.txt",
+                mime="text/plain"
+            )
+        else:
+            # Display error message
+            st.error("❌ Error occurred during correction")
+            error_message = result.get("error", "Unknown error occurred")
+            st.markdown(f"**Error details:** {error_message}")
     
     with col2:
+        st.markdown("### 📖 Results")
+        
+        # Display results if available
         if 'correction_result' in st.session_state:
-            st.markdown("### Corrected Poem")
-            result = st.session_state.correction_result
-            
-            st.markdown(f'<div class="poetry-output">{result.get("corrected_poem", "Your corrected poem will appear here...")}</div>', unsafe_allow_html=True)
-            
-            if "suggestions" in result:
-                st.markdown("### Suggestions")
-                st.markdown(f'<div class="poetry-output">{result.get("suggestions", "")}</div>', unsafe_allow_html=True)
+            display_results(st.session_state.correction_result)
+        else:
+            # Placeholder when no results
+            st.markdown("""
+            <div class="poetry-output" style="text-align: center; color: #666;">
+                <h4>🎭 Your corrected poem will appear here...</h4>
+                <p>Enter your poem in the left panel and click "Correct Poem" to get started!</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Footer with tips
+    st.markdown("---")
+    st.markdown("### 💡 Tips for Better Results")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        **📝 Input Tips:**
+        - Paste your complete poem
+        - Include line breaks as intended
+        - Don't worry about perfect grammar
+        """)
+    
+    with col2:
+        st.markdown("""
+        **🎯 Focus Areas:**
+        - Grammar: Fix punctuation & syntax
+        - Flow: Improve rhythm & pace
+        - Imagery: Enhance metaphors & visuals
+        """)
+    
+    with col3:
+        st.markdown("""
+        **⚙️ Settings:**
+        - Preserve style: Keep original structure
+        - Multiple focuses: Select 2-3 areas
+        - Download results for future use
+        """)
+    
+    # Clear results button
+    if st.button("🗑️ Clear Results"):
+        if 'correction_result' in st.session_state:
+            del st.session_state.correction_result
+        st.rerun()
 
 # Enhanced Footer
 def show_footer():
