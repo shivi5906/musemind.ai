@@ -11,16 +11,17 @@ from dotenv import load_dotenv
 import traceback
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 load_dotenv()
 
 class VerseCraftAgent:
-    def __init__(self):
+    def __init__(self ):
+        
         """Initialize the VerseCraft agent with enhanced capabilities"""
         self.name = "VerseCraft"
         self.google_api_key = os.getenv("GOOGLE_API_KEY")
         
-        # Initialize LLM with better parameters for poetry
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key=self.google_api_key,
@@ -29,6 +30,7 @@ class VerseCraftAgent:
             max_retries=4,
             max_tokens=700
         )
+
         
         # Style-specific prompt templates
         self.style_templates = {
@@ -50,13 +52,26 @@ class VerseCraftAgent:
         # Author mapping
         self.authors = {
             'kafka': './vectorstores/kafka',
-            'dostoyevsky': './vectorstores/dostovesky',
+            'dostovesky': './vectorstores/dostovesky',
             'rumi': './vectorstores/rumi'
         }
         
         # Load vector stores
         self._load_vector_stores()
     
+    # def build_chain(self):
+    #      return LLMChain.from_chain_type(
+    #         llm=self.llm,
+    #         retriever=self.retriever,
+    #         chain_type="stuff",
+    #         chain_type_kwargs={"prompt": self.prompt}
+    #     )            
+    # def generate_poem1(self, theme):
+    #      return self.LLMChain.run({"query": theme})
+
+    
+    
+
     def _get_free_verse_template(self):
         """Template for free verse poetry"""
         return PromptTemplate(
@@ -82,6 +97,8 @@ Create a free verse poem that:
 generate only {line_count} only . do not exceed the word limit .
 
 Return only the poem lines, no explanations or introductions.
+
+
 Poem:
 """
         )
@@ -140,7 +157,7 @@ Create a haiku that:
 - Has a seasonal reference or natural imagery
 - Creates a moment of insight or beauty
 
-generate only {line_count} only . do not exceed the word limit .
+
 
 Return only the poem lines, no explanations or introductions.
 Poem:
@@ -208,6 +225,30 @@ Poem:
 """
         )
     
+    def getrawPrompt1(self):
+        return PromptTemplate(
+            input_variable = ["raw_prompt"],
+            template="""   
+you are a renowned poet that can shape the thoughts of the person into an free verse peom , analyse the given raw 
+words and focus on natural speech patterns and emotional expression 
+
+context from the words :
+{raw_prompt}
+
+Create a freeverse poem which is :
+-similar to the given input variable 
+-strongly conveys the emotion used in the given input variable 
+-uses vivid imagery and metaphors 
+
+-generate only about the length of the given {raw_prompt} 
+
+return only the poem not the explaination or any other information .
+
+Poem :
+
+""" 
+        )
+    
     def _get_acrostic_template(self):
         """Template for acrostic poetry"""
         return PromptTemplate(
@@ -230,7 +271,6 @@ Create an acrostic poem that:
 - Expresses the {emotion} emotion throughout
 - Has exactly {line_count} lines
 - Maintains poetic flow and meaning
-
 generate only {line_count} only . do not exceed the word limit .
 
 Return only the poem lines, no explanations or introductions.
@@ -399,17 +439,198 @@ Poem:
                 'poem': None
             }
     
+
+    def generate_poem_from_raw(self, raw_thought):
+
+        try :
+            if raw_thought:
+                search_query = "emotional , sad"
+                retriever = self.retrievers["kafka"]
+                docs = retriever.get_relevant_documents(search_query)
+                
+
+                template = self.getrawPrompt1()
+                print("Template expects these variables:", template.input_variables)
+
+                chain = LLMChain(llm=self.llm, prompt=template)
+               
+                result = chain.invoke({
+                "raw_prompt": raw_thought 
+            })
+                generated_poem = result["text"].strip()
+                actual_lines = len([line for line in generated_poem.split('\n') if line.strip()])
+
+                return{
+                    'poem':generated_poem,
+                    'linecount':actual_lines
+                }
+       
+
+
+
+            else:
+                print("worng input can't fulfill demand ")
+
+
+        except Exception as e  :
+            print(f"❌ ERROR in generate_poem: {e}")
+    
+
+
+
+    def getrawPrompt(self):
+      """Returns a prompt template for generating structured poems from raw thoughts """
+      template = """You are a skilled poet and emotional interpreter. Your task is to transform raw thoughts and emotions into a beautifully structured poem.
+
+Given the following raw thought or emotion:
+"{raw_prompt}"
+
+Please create a structured poem that:
+
+1. **Captures the essence** of the raw emotion or thought
+2. **Follows a clear structure** (stanzas, rhythm, flow)
+3. **Uses vivid imagery** and metaphors
+4. **Maintains emotional authenticity**
+5. **Has a consistent tone** throughout
+
+**Guidelines for the poem:**
+- Create 3-4 stanzas with 4-6 lines each
+- Use appropriate poetic devices (metaphor, alliteration, rhythm)
+- Maintain emotional coherence with the original thought
+- Include sensory details to make it vivid
+- End with a powerful or reflective conclusion
+
+**Structure Format:**
+- Each stanza should explore a different aspect of the emotion/thought
+- Use consistent meter or free verse (choose what fits the emotion)
+- Include line breaks and spacing for readability
+
+**Output the poem directly without any additional commentary or explanation.**
+
+Poem:"""
+
+      return PromptTemplate(
+        input_variables=["raw_prompt"],
+        template=template
+    )
+
+# Alternative version with more parameters for flexibility
+    def getrawPromptAdvanced(self):
+      template = """You are a skilled poet and emotional interpreter. Transform the given raw thought into a structured poem.
+
+**Raw Input:** "{raw_prompt}"
+**Desired Emotion:** {emotion}
+**Keywords to incorporate:** {keywords}
+**Target length:** {line_count} lines
+**Retrieved context for inspiration:** {context}
+
+**Instructions:**
+Create a structured poem that captures the essence of the raw input while incorporating the specified emotion and keywords. Use the context for additional inspiration and depth.
+
+**Poem Structure Requirements:**
+- Organize into clear stanzas
+- Use vivid imagery and metaphors
+- Maintain consistent emotional tone
+- Include sensory details
+- Create a satisfying conclusion
+
+**Style Guidelines:**
+- Match the poem's rhythm to the emotion (fast for excitement, slow for melancholy)
+- Use appropriate literary devices (alliteration, assonance, symbolism)
+- Ensure each stanza develops the central theme
+- Balance abstract concepts with concrete imagery
+
+**Output only the poem without any additional text:**
+
+"""
+
+      return PromptTemplate(
+              input_variables=["raw_prompt", "emotion", "keywords", "line_count", "context"],
+             template=template
+            )
+
+# Usage in your class
+    def generate_poem_from_raw2(self, raw_thought):
+        try:
+          if raw_thought:
+            search_query = "emotional, sad"
+            retriever = self.retrievers["kafka"]
+            docs = retriever.get_relevant_documents(search_query)
+            
+            # Use the simple version
+            template = self.getrawPrompt()
+            chain = LLMChain(llm=self.llm, prompt=template)
+           
+            result = chain.invoke({
+                "raw_prompt": raw_thought
+            })
+            
+            generated_poem = result["text"].strip()
+            actual_lines = len([line for line in generated_poem.split('\n') if line.strip()])
+
+            return {
+                'poem': generated_poem,
+                'line_count': actual_lines,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+          print(f"Error generating poem: {e}")
+        return {
+            'poem': None,
+            'error': str(e),
+            'status': 'failed'
+        }
+
+# If you want to use the advanced version with more parameters:
+    def generate_poem_from_raw_advanced(self, raw_thought, emotion="melancholy", target_lines=16):
+        try:
+           if raw_thought:
+            search_query = "emotional, poetic"
+            retriever = self.retrievers["kafka"]
+            docs = retriever.get_relevant_documents(search_query)
+            
+            template = self.getrawPromptAdvanced()
+            chain = LLMChain(llm=self.llm, prompt=template)
+           
+            result = chain.invoke({
+                "raw_prompt": raw_thought,
+                "emotion": emotion,
+                "keywords": search_query,
+                "line_count": target_lines,
+                "context": docs[:3] if docs else "No additional context"
+            })
+            
+            generated_poem = result["text"].strip()
+            actual_lines = len([line for line in generated_poem.split('\n') if line.strip()])
+
+            return {
+                'poem': generated_poem,
+                'line_count': actual_lines,
+                'target_lines': target_lines,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+          print(f"Error generating poem: {e}")
+        return {
+            'poem': None,
+            'error': str(e),
+            'status': 'failed'
+        }
+
+    
     # Backward compatibility methods
     def generate_poem_kafka(self, theme):
         """Generate poem in Kafka style (backward compatibility)"""
         return self.generate_poem(theme, 'melancholy', 'Free Verse', 8, 'kafka')
     
-    def generate_poem_dostoyevsky(self, theme):
-        """Generate poem in Dostoyevsky style (backward compatibility)"""
-        return self.generate_poem(theme, 'despair', 'Free Verse', 12, 'dostoyevsky')
+    def generate_poem_dostovesky(self, theme):
+        """Generate poem in Dostovesky style (backward compatibility)"""
+        return self.generate_poem(theme, 'despair', 'Free Verse', 12, 'dostovesky')
     
     def generate_poem_rumi(self, theme):
-        """Generate poem in Rumi style (backward compatibility)"""
+        """Generate poem in rumi style (backward compatibility)"""
         return self.generate_poem(theme, 'love', 'Free Verse', 10, 'rumi')
     
     def get_author_info(self, author):
@@ -494,6 +715,9 @@ Poem:
                 'status': 'error',
                 'error': f'Request processing failed: {str(e)}'
             }
+
+    
+
 
 
 # Example usage and testing
