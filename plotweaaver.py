@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from typing import Dict, Optional, List
 from pathlib import Path
 import json
+from langchain.chains import LLMChain
 
 class PlotWeaver:
     """
@@ -339,6 +340,194 @@ Ensure the complexity matches the user's request: simple plots should be straigh
         }
 
 # Example usage and testing functions
+
+
+    def getPhilosophicalPrompt(self):
+        template = """You are a profound philosophical thinker and contemplative writer. Your task is to transform raw thoughts and emotions into deep philosophical reflections that explore the fundamental nature of existence, consciousness, and human experience.
+
+Given the following raw thought or emotion:
+"{raw_prompt}"
+
+Please create a structured philosophical reflection that:
+
+1. **Examines the deeper meaning** behind the raw thought
+2. **Explores universal themes** and existential questions
+3. **Connects to broader philosophical concepts** (existence, consciousness, time, meaning, etc.)
+4. **Uses contemplative and reflective language**
+5. **Provides multiple perspectives** on the core idea
+6. **Ends with profound insights** or questions for further contemplation
+
+**Structure Guidelines:**
+- Begin with an engaging philosophical opening that reframes the raw thought
+- Develop 3-4 main philosophical themes or questions
+- Use contemplative, measured prose
+- Include references to the human condition
+- Incorporate metaphysical and existential elements
+- Conclude with deeper wisdom or provocative questions
+
+**Philosophical Approach:**
+- Draw connections to timeless philosophical questions
+- Explore paradoxes and contradictions
+- Examine both subjective and objective perspectives
+- Consider the relationship between individual experience and universal truths
+- Reflect on the nature of consciousness, reality, and meaning
+
+**Tone and Style:**
+- Contemplative and introspective
+- Scholarly yet accessible
+- Balanced between abstract concepts and concrete examples
+- Thought-provoking without being pretentious
+
+**Output the philosophical reflection directly without any additional commentary:**
+
+Reflection:"""
+
+        return PromptTemplate(
+        input_variables=["raw_prompt"],
+        template=template
+    )
+
+# Advanced version with more parameters for deeper control
+    def getPhilosophicalPromptAdvanced(self):
+    
+     template = """You are a profound philosophical thinker drawing from centuries of wisdom traditions. Transform the given raw thought into a deep philosophical reflection.
+
+**Raw Input:** "{raw_prompt}"
+**Philosophical Theme:** {theme}
+**Key Concepts:** {concepts}
+**Target Length:** {reflection_length} words
+**Contextual Wisdom:** {context}
+
+**Instructions:**
+Create a structured philosophical reflection that examines the raw input through the lens of {theme}, incorporating the specified concepts and drawing from the provided wisdom context.
+
+**Philosophical Framework:**
+- **Ontological Layer**: What does this reveal about the nature of being?
+- **Epistemological Layer**: How do we know what we know about this experience?
+- **Ethical Layer**: What moral or value implications arise?
+- **Existential Layer**: How does this relate to meaning and purpose?
+- **Phenomenological Layer**: What is the lived experience telling us?
+
+**Reflection Structure:**
+1. **Opening Contemplation**: Reframe the raw thought philosophically
+2. **Core Exploration**: Examine through multiple philosophical lenses
+3. **Universal Connections**: Link to broader human experience
+4. **Paradoxes and Tensions**: Explore contradictions and complexities
+5. **Synthesis**: Weave insights into coherent understanding
+6. **Closing Wisdom**: End with profound insights or questions
+
+**Philosophical Style:**
+- Use sophisticated but accessible language
+- Balance abstract concepts with concrete examples
+- Include rhetorical questions that provoke thought
+- Weave in wisdom from various philosophical traditions
+- Maintain scholarly rigor while remaining engaging
+
+**Output only the philosophical reflection:**
+
+"""
+
+     return PromptTemplate(
+        input_variables=["raw_prompt", "theme", "concepts", "reflection_length", "context"],
+        template=template
+    )
+
+# Usage in your plotweaver class
+    def generate_philosophical_reflection(self, raw_thought):
+        try:
+         if raw_thought:
+            search_query = "philosophical, wisdom, contemplation"
+            retriever = self.retriever # Assuming you have a philosophy retriever
+            docs = retriever.get_relevant_documents(search_query)
+            
+            # Use the simple version
+            template = self.getPhilosophicalPrompt()
+            chain = LLMChain(llm=self.llm, prompt=template)
+           
+            result = chain.invoke({
+                "raw_prompt": raw_thought
+            })
+            
+            generated_reflection = result["text"].strip()
+            word_count = len(generated_reflection.split())
+
+            return {
+                'reflection': generated_reflection,
+                'word_count': word_count,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+          print(f"Error generating philosophical reflection: {e}")
+          return {
+            'reflection': None,
+            'error': str(e),
+            'status': 'failed'
+        }
+
+# Advanced version with more philosophical depth
+    def generate_philosophical_reflection_advanced(self, raw_thought, theme="existentialism", target_words=300):
+        try:
+          if raw_thought:
+            search_query = f"philosophy, {theme}, wisdom"
+            retriever = self.retrievers["philosophy"]
+            docs = retriever.get_relevant_documents(search_query)
+            
+            # Define philosophical concepts based on theme
+            concept_mapping = {
+                "existentialism": "authenticity, freedom, responsibility, absurdity, choice",
+                "stoicism": "virtue, wisdom, acceptance, resilience, duty",
+                "phenomenology": "consciousness, experience, intentionality, being-in-the-world",
+                "ethics": "morality, virtue, justice, good life, responsibility",
+                "metaphysics": "reality, existence, substance, causation, time",
+                "epistemology": "knowledge, truth, belief, skepticism, certainty"
+            }
+            
+            template = self.getPhilosophicalPromptAdvanced()
+            chain = LLMChain(llm=self.llm, prompt=template)
+           
+            result = chain.invoke({
+                "raw_prompt": raw_thought,
+                "theme": theme,
+                "concepts": concept_mapping.get(theme, "wisdom, truth, meaning"),
+                "reflection_length": target_words,
+                "context": docs[:2] if docs else "Draw from your philosophical knowledge"
+            })
+            
+            generated_reflection = result["text"].strip()
+            word_count = len(generated_reflection.split())
+
+            return {
+                'reflection': generated_reflection,
+                'word_count': word_count,
+                'target_words': target_words,
+                'theme': theme,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+          print(f"Error generating philosophical reflection: {e}")
+        return {
+            'reflection': None,
+            'error': str(e),
+            'status': 'failed'
+        }
+
+# Example usage function for your plotweaver agent
+    def process_raw_thought_philosophically(self, raw_thought, depth_level="standard"):
+       """
+       Main method to process raw thoughts into philosophical reflections
+       """
+       if depth_level == "advanced":
+        return self.generate_philosophical_reflection_advanced(
+            raw_thought, 
+            theme="existentialism",  # You can make this dynamic
+            target_words=400
+        )
+       else:
+        return self.generate_philosophical_reflection(raw_thought)
+
+
 def main():
     """Example usage of PlotWeaver system."""
     try:
