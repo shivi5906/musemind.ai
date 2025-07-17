@@ -685,7 +685,61 @@ def vocabulary_help_tool():
             st.markdown(f'<div class="poetry-output">{result.get("suggestions", "Suggestions will appear here...")}</div>', unsafe_allow_html=True)
 
 def content_generation_tool():
-    """Content Generation from Ideas Tool"""
+    # Initialize MuseMorphAgent lazily (only when needed)
+    def initialize_agent():
+        if 'musemorph_agent' not in st.session_state:
+            try:
+                with st.spinner("🔄 Initializing MuseMorph Agent... Please wait."):
+                    
+                    st.session_state.musemorph_agent = MuseMorphAgent()
+                    st.session_state.agent_loaded = True
+                    st.success("✅ MuseMorph Agent initialized successfully!")
+            except Exception as e:
+                st.session_state.agent_loaded = False
+                st.session_state.error_message = str(e)
+                st.error(f"❌ Failed to initialize MuseMorph Agent: {str(e)}")
+        return st.session_state.get('agent_loaded', False)
+    
+    # Function to show loading
+    def show_loading():
+        with st.spinner("Transforming your thoughts..."):
+            import time
+            time.sleep(0.5)
+    
+    # Function to process with MuseMorphAgent
+    def process_with_musemorph(raw_thoughts: str, output_style: str) -> dict:
+        try:
+            # Map UI options to MuseMorphAgent expected formats
+            style_mapping = {
+                "Free Verse": "freeverse",
+                "Structured Poem": "structuredpoem", 
+                "Philosophical Reflection": "philosophicalreflection"
+            }
+            
+            desired_output = style_mapping.get(output_style, "freeverse")
+            
+            # Call the MuseMorphAgent
+            result = st.session_state.musemorph_agent.morph(raw_thoughts, desired_output)
+            
+            # Handle different return formats based on output type
+            if desired_output == "philosophicalreflection":
+                content = result.get('reflection', result) if isinstance(result, dict) else result
+            else:
+                content = result.get('poem', result) if isinstance(result, dict) else result
+                
+            return {
+                "content": content,
+                "status": "success",
+                "output_type": output_style
+            }
+            
+        except Exception as e:
+            return {
+                "error": f"Error processing your thoughts: {str(e)}",
+                "status": "error"
+            }
+    
+    # Main UI
     st.markdown('<h2 class="tool-title">💭 Content from Ideas</h2>', unsafe_allow_html=True)
     st.markdown('<p class="tool-description">Transform your raw thoughts and ideas into beautiful poetic expressions.</p>', unsafe_allow_html=True)
     
@@ -695,35 +749,75 @@ def content_generation_tool():
         raw_thoughts = st.text_area(
             "Share your raw thoughts:",
             placeholder="Write down whatever comes to mind - memories, feelings, observations...",
-            height=200
+            height=200,
+            key="raw_thoughts_input"
         )
         
         output_style = st.selectbox(
             "Desired output style:",
-            ["Poetic Prose", "Free Verse", "Structured Poem", "Philosophical Reflection"]
+            ["Free Verse", "Structured Poem", "Philosophical Reflection"],
+            key="output_style_select"
         )
         
+        # Optional tone selector
+        tone = st.selectbox(
+            "Tone (optional):",
+            ["Default", "Melancholic", "Uplifting", "Contemplative", "Passionate"],
+            key="tone_select"
+        )
         
-        if st.button("💭 Transform Ideas"):
-            show_loading()
-            
-            data = {
-                "raw_thoughts": raw_thoughts,
-                "output_style": output_style,
-                "tone": tone
-            }
-            
-            result = make_api_call("/api/gen-from-idea", data)
-            
-            if "error" not in result:
-                st.session_state.content_result = result
+        if st.button("💭 Transform Ideas", key="transform_button"):
+            if not raw_thoughts.strip():
+                st.warning("⚠️ Please enter some thoughts to transform.")
+            else:
+                # Initialize agent only when transform button is clicked
+                if initialize_agent():
+                    show_loading()
+                    
+                    # Process with MuseMorphAgent
+                    result = process_with_musemorph(raw_thoughts, output_style)
+                    
+                    if "error" not in result:
+                        st.session_state.content_result = result
+                        st.success("✅ Transformation complete!")
+                    else:
+                        st.error(result["error"])
+                else:
+                    st.error("❌ Cannot transform thoughts. Agent initialization failed.")
+                    st.info("Please check your imports and ensure VerseCraftAgent and PlotWeaver are properly configured.")
     
     with col2:
         if 'content_result' in st.session_state:
             st.markdown("### Transformed Content")
             result = st.session_state.content_result
             
-            st.markdown(f'<div class="poetry-output">{result.get("content", "Your transformed content will appear here...")}</div>', unsafe_allow_html=True)
+            # Display the transformed content
+            content = result.get("content", "Your transformed content will appear here...")
+            st.markdown(f'<div class="poetry-output">{content}</div>', unsafe_allow_html=True)
+            
+            # Add metadata
+            st.markdown(f"**Style:** {result.get('output_type', 'Unknown')}")
+            
+            # Add download option
+            if content and content != "Your transformed content will appear here...":
+                st.download_button(
+                    label="📥 Download Content",
+                    data=content,
+                    file_name=f"transformed_content_{result.get('output_type', 'output').lower().replace(' ', '_')}.txt",
+                    mime="text/plain",
+                    key="download_content"
+                )
+                
+                # Clear result button
+                if st.button("🗑️ Clear Result", key="clear_result"):
+                    if 'content_result' in st.session_state:
+                        del st.session_state.content_result
+                    st.rerun()
+        else:
+            st.markdown("### Transformed Content")
+            st.markdown('<div class="poetry-output">Your transformed content will appear here...</div>', unsafe_allow_html=True)
+
+
 
 
 
