@@ -10,3 +10,4 @@ python-dotenv
 sqlalchemy
 jinja2
 pandas
+faiss-gpu
