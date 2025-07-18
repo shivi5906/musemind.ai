@@ -8,6 +8,8 @@ from app.versecraftAgent import VerseCraftAgent
 from app.plotweaaver import PlotWeaver
 from app.lexifix import LexiFix
 from app.poetanalysis import PoetAnalysisAgent
+from app.musemorph import MuseMorphAgent
+
 
 
 
@@ -550,10 +552,12 @@ def main():
         "🔍 Poet Analysis": "analyze_poet",
         "📚 Plot-Based Writing": "plot_writing", 
         "✍️ Poetry Generation": "poetry_gen",
+        "🔧 Poetry Correction": "poetry_correction",
+         "💭 Content from Ideas": "content_gen",
         "📖 Vocabulary Help": "vocab_help",
-        "💭 Content from Ideas": "content_gen",
-        "🎓 Beginner's Guide": "beginner_guide",
-        "🔧 Poetry Correction": "poetry_correction"
+       
+        "🎓 Beginner's Guide": "beginner_guide"
+        
     }
     
     selected_tool = st.sidebar.selectbox("Choose your writing tool:", list(tools.keys()))
@@ -816,10 +820,6 @@ def content_generation_tool():
         else:
             st.markdown("### Transformed Content")
             st.markdown('<div class="poetry-output">Your transformed content will appear here...</div>', unsafe_allow_html=True)
-
-
-
-
 
 
 def beginner_guide_tool():
