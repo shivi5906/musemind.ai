@@ -11,6 +11,8 @@
 
 ---
 
+![App Demo](demo.gif)
+
 ## 🌟 What is MuseMind.AI?
 
 MuseMind.AI is a sophisticated multi-agent writing assistant that harnesses the power of specialized AI agents to elevate your creative writing experience. Built with Python and LangChain, it combines traditional literary craftsmanship with cutting-edge AI technology to help writers, poets, and storytellers create compelling content.
